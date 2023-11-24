@@ -18,6 +18,7 @@ try {
 
 class Personnage
 {
+    // On met les variables en private pour éviter qu'ils soient modifiés en dehors de la classe
     private $nom;
     private $pv;
     private $pa;
@@ -127,6 +128,8 @@ class Personnage
     {
         // Retire un objet de l'inventaire du personnage
         unset($this->inventaire[array_search($objet, $this->inventaire)]);
+        // On réindexe le tableau
+        $this->inventaire = array_values($this->inventaire);
     }
 
     public function gagnerExperience($experience)
@@ -152,6 +155,7 @@ class Personnage
         // Retire des points de vie au personnage
         if ($degats - $this->pd > 0) {
             $this->pv -= $degats - $this->pd;
+            echo "Le personnage " . $this->nom . " subit " . ($degats - $this->pd) . " dégâts !";
         } else {
             echo "Le personnage " . $this->nom . " n'a pas subi de dégâts !";
         }
@@ -173,7 +177,7 @@ class Personnage
         // Affiche l'inventaire du personnage
         echo "Inventaire de " . $this->nom . " : \n";
         for ($i = 0; $i < count($this->inventaire); $i++) {
-            echo ($i + 1) . ". " . $this->inventaire[$i]->getNom() . "\n";
+            echo ($i + 1) . ". " . $this->inventaire[$i]->getNom() . " -> " . $this->inventaire[$i]->getPa() . "PA \n";
         }
     }
 }
@@ -242,34 +246,6 @@ class Monstre
         echo "Points de vie : " . $this->pv . "\n";
         echo "Puissance d'attaque : " . $this->puissance_attaque . "\n";
         echo "Difficulté : " . $this->difficulte . "\n";
-    }
-}
-
-class Salle
-{
-    private $difficulte;
-    private $type_salle;
-    private $monstre;
-    private $enigme;
-
-    public function __construct($difficulte, $type_salle, $monstre, $enigme)
-    {
-        $this->difficulte = $difficulte;
-        $this->type_salle = $type_salle;
-        $this->monstre = $monstre;
-        $this->enigme = $enigme;
-    }
-
-    // GETTERS
-
-    public function getDifficulte()
-    {
-        return $this->difficulte;
-    }
-
-    public function getTypeSalle()
-    {
-        return $this->type_salle;
     }
 }
 
@@ -358,6 +334,7 @@ class Enigme
 
 class Objet
 {
+    // Classe parente de Arme et Potion
     private $nom;
 
     private $prix;
@@ -455,9 +432,13 @@ class Marchand
     public function recupererObjets($objets)
     {
         // Ajoute des objets à l'inventaire du marchand
+        // Le marchand a entre 2 et 5 objets dans son inventaire
+        // On récupère des objets aléatoirement dans la liste des objets
+
         $nb_objets = rand(2, 5);
         for ($i = 0; $i < $nb_objets; $i++) {
             $objet = $objets[rand(0, count($objets) - 1)];
+            // On vérifie que l'objet n'est pas déjà dans l'inventaire du marchand
             while (in_array($objet, $this->inventaire)) {
                 $objet = $objets[rand(0, count($objets) - 1)];
             }
@@ -475,7 +456,7 @@ class Marchand
         // Affiche l'inventaire du marchand
         echo "Inventaire de " . $this->nom . " : \n";
         for ($i = 0; $i < count($this->inventaire); $i++) {
-            echo ($i + 1) . ". " . $this->inventaire[$i]->getNom() . " -> " . $this->inventaire[$i]->getPrix() . "\n";
+            echo ($i + 1) . ". " . $this->inventaire[$i]->getNom() . " -> " . $this->inventaire[$i]->getPrix() . " pièces (" . $this->inventaire[$i]->getPa() .  " PA)\n";
         }
     }
 
@@ -505,6 +486,7 @@ class PersonnageDAO
 
     public function ajouterPersonnage($personnage)
     {
+        // Ajoute un personnage à la base de données, on utilise la commande INSERT INTO pour ajouter une ligne dans la table personnage
         try {
             $requete = $this->db->prepare("INSERT INTO personnage(nom, pv, point_action, point_defense, experience, niveau, salle_actuelle) VALUES (:nom, :pv, :pa, :pd, :experience, :niveau, :salle_actuelle)");
             $requete->execute([
@@ -524,6 +506,9 @@ class PersonnageDAO
 
     public function recupererPersonnage()
     {
+        // Fonction qui récupère le personnage dans la base de données
+        // On utilise la commande SELECT pour récupérer les données de la table personnage
+        // On recupere tous les personnages avec * car il n'y a qu'un seul personnage dans la base de données
         try {
             $requete = $this->db->prepare("SELECT * FROM personnage");
             $requete->execute();
@@ -543,6 +528,8 @@ class PersonnageDAO
 
     public function sauvegarderPersonnage($personnage)
     {
+        // Fonction qui met à jour les informations du personnage dans la base de données
+        // Cela permet de sauvegarder le personnage
         try {
             $requete = $this->db->prepare("UPDATE personnage SET pv = :pv, point_action = :pa, point_defense = :pd, experience = :experience, niveau = :niveau, salle_actuelle = :salle_actuelle WHERE nom = :nom");
             $requete->execute([
@@ -562,6 +549,8 @@ class PersonnageDAO
 
     public function supprimerPersonnage()
     {
+        // Fonction qui supprime le personnage de la base de données
+        // On utilise la commande DELETE pour supprimer le personnage
         try {
             $requete = $this->db->prepare("DELETE FROM personnage");
             $requete->execute();
@@ -678,58 +667,16 @@ class ObjetDAO
 
     public function recupererTousLesObjets()
     {
+        // Récupère les objets liés au personnage
+        // Pour cela, chaque objet a une variable objet_marchand qui vaut 0 si l'objet est lié au personnage et 1 si l'objet est lié au marchand
+        // (On a essayer d'utiliser un boolean ce qui est plus adapté ici mais cela ne fonctionnait pas)
         try {
-            $requete = $this->db->prepare("SELECT * FROM objet WHERE prix IS NULL");
+            $requete = $this->db->prepare("SELECT * FROM objet WHERE objet_marchand = 0");
             $requete->execute();
             $resultat = $requete->fetchAll(PDO::FETCH_ASSOC);
             return $resultat;
         } catch (PDOException $e) {
             echo "Erreur lors de la récupération des objets : " . $e->getMessage();
-            die();
-        }
-    }
-}
-
-class ArmeDAO
-{
-    private $db;
-
-    public function __construct($db)
-    {
-        $this->db = $db;
-    }
-
-    public function recupererArme($arme)
-    {
-        try {
-            $requete = $this->db->prepare("SELECT * FROM objet WHERE nom = :nom");
-            $requete->execute([":nom" => $arme->getNom()]);
-            $resultat = $requete->fetch(PDO::FETCH_ASSOC);
-            $arme = new Arme($resultat["nom"], $resultat["prix"], $resultat["degats"], $resultat["pa"]);
-            return $arme;
-        } catch (PDOException $e) {
-            echo "Erreur lors de la récupération de l'arme : " . $e->getMessage();
-            die();
-        }
-    }
-}
-
-class PotionDAO
-{
-    private $db;
-
-    public function __construct($db)
-    {
-        $this->db = $db;
-    }
-
-    public function ajouterPotion($potion)
-    {
-        try {
-            $requete = $this->db->prepare("INSERT INTO objet(nom, pv, pa) VALUES (:nom, :pv, :pa)");
-            $requete->execute([":nom" => $potion->getNom(), ":pv" => $potion->getPv(), ":pa" => $potion->getPa()]);
-        } catch (PDOException $e) {
-            echo "Erreur lors de l'ajout de la potion : " . $e->getMessage();
             die();
         }
     }
@@ -746,6 +693,7 @@ class SalleDAO
 
     public function recupererSalle($id)
     {
+        // Fonction qui récupère une salle en fonction de son id
         try {
             $requete = $this->db->prepare("SELECT * FROM salle WHERE id = :id");
             $requete->execute([":id" => $id]);
@@ -768,6 +716,7 @@ class MonstreDAO
 
     public function recupererMonstre($difficulte)
     {
+        // Fonction qui récupère un monstre aléatoirement en fonction de sa difficulté
         try {
             $requete = $this->db->prepare("SELECT * FROM monstre WHERE difficulte = :difficulte ORDER BY RAND() LIMIT 1");
             $requete->execute([":difficulte" => $difficulte]);
@@ -792,6 +741,7 @@ class EnigmeDAO
 
     public function recupererEnigme($difficulte)
     {
+        // Fonction qui récupère une énigme aléatoirement en fonction de sa difficulté
         try {
             $requete = $this->db->prepare("SELECT * FROM enigme WHERE difficulte = :difficulte ORDER BY RAND() LIMIT 1");
             $requete->execute([":difficulte" => $difficulte]);
@@ -816,8 +766,9 @@ class MarchanDAO
 
     public function recupererMarchand()
     {
+        // Fonction qui récupère les objets liés au marchand (où objet_marchand = 1)
         try {
-            $requete = $this->db->prepare("SELECT * FROM objet WHERE prix IS NOT NULL");
+            $requete = $this->db->prepare("SELECT * FROM objet WHERE objet_marchand = 1");
             $requete->execute();
             $resultat = $requete->fetchAll(PDO::FETCH_ASSOC);
             return $resultat;
@@ -839,14 +790,23 @@ function choixAttaque($personnage)
         // Attaque avec les poings
         $personnage->setPa_utilises($personnage->getPa_utilises() + 1);
         return "poings";
+
+    } elseif ($choix == 2 && count($personnage->getInventaire()) <= 0) {
+        echo "Vous n'avez pas d'objet dans votre inventaire !\n \n";
+        return choixAttaque($personnage);
+
     } else if ($choix == 2) {
         // Attaque avec une arme
         popen('cls', 'w');
         $personnage->afficherInventaire();
-        $choix_objet = (int)readline("Quelle arme voulez-vous utiliser ? \n");
-        while ($choix_objet < 1 || $choix_objet > count($personnage->getInventaire())) {
-            $choix_objet = (int)readline("Quelle arme voulez-vous utiliser ? \n");
+        $choix_objet = (int)readline("Quelle arme voulez-vous utiliser ? Entrer 0 pour ne pas utiliser d'objet \n");
+        while ($choix_objet < 0 || $choix_objet > count($personnage->getInventaire())) {
+            $choix_objet = (int)readline("Quelle arme voulez-vous utiliser ? Entrer 0 pour ne pas utiliser d'objet \n");
         }
+        if ($choix_objet == 0) {
+            return choixAttaque($personnage);
+        }
+
         $objet = $personnage->getInventaire()[$choix_objet - 1];
 
         // On vérifie que le personnage a assez de points d'action pour utiliser l'objet
@@ -858,6 +818,7 @@ function choixAttaque($personnage)
         // On enlève les points d'action au personnage en fonction de l'objet utilisé
         $personnage->setPa_utilises($personnage->getPa_utilises() + $objet->getPa());
         return $objet;
+
     } else if ($choix == 3) {
         popen('cls', 'w');
         // Affiche les statistiques du personnage
@@ -867,6 +828,7 @@ function choixAttaque($personnage)
         echo "Expérience : " . $personnage->getExperience() . "\n";
         echo "Niveau : " . $personnage->getNiveau() . "\n";
         return choixAttaque($personnage);
+
     } else {
         // Si le joueur entre un choix invalide, on lui redemande de choisir
         echo "Choix invalide !\n";
@@ -880,9 +842,10 @@ function combat($personnage, $monstre)
     while ($personnage->getPv() > 0 && $monstre->getPv() > 0) {
 
         // Tour du joueur
-
+        popen('cls', 'w');
         echo "C'est à votre tour !\n";
-        sleep(2);
+        echo "Il reste " . $monstre->getPv() . " points de vie au monstre !\n";
+        readline("Appuyer sur entrer pour continuer !\n");
         popen('cls', 'w');
 
         while ($personnage->getPa_utilises() < $personnage->getPa()) {
@@ -895,12 +858,12 @@ function combat($personnage, $monstre)
             if ($choix == "poings") {
                 echo "Vous attaquez le monstre avec vos poings !\n";
                 $personnage->attaquer($monstre, 5);
+                echo "\n";
             } elseif ($choix instanceof Arme) {
                 echo "Vous attaquez le monstre avec votre " . $choix->getNom() . " !\n";
                 $personnage->attaquer($monstre, $choix->getDegats());
             } else {
                 echo "Vous utilisez une potion !\n";
-                print_r($choix);
                 $personnage->setPv($personnage->getPv() + $choix->getPv());
                 // On supprime la potion de l'inventaire
                 $personnage->retirerInventaire($choix);
@@ -919,13 +882,13 @@ function combat($personnage, $monstre)
 
             echo "Le monstre attaque !\n";
             $monstre->attaquer($personnage);
-            sleep(2);
+            readline("\nAppuyer sur entrer pour continuer !\n");
         }
     }
 
-    if ($personnage->getPv() > 0) {
+    // La fonction renvoie true si le personnage a gagné le combat et false s'il a perdu
 
-        echo "Vous avez vaincu le monstre !\n";
+    if ($personnage->getPv() > 0) {
         return true;
     } else {
         echo "Vous avez été vaincu par le monstre !\n";
@@ -938,6 +901,7 @@ function enigme($personnage, $enigme)
     // Affiche l'énigme
     if ($enigme->afficherEnigme()) {
         // Si la réponse est correcte, le personnage gagne de l'expérience
+        popen('cls', 'w');
         echo "Bonne réponse !\n";
         switch ($enigme->getDifficulte()) {
             case "facile":
@@ -954,6 +918,7 @@ function enigme($personnage, $enigme)
         echo "Mauvaise réponse !\n";
         // Si la réponse est incorrecte, le personnage perd des points de vie
         $personnage->subirDegats(10);
+        echo "\n";
     }
 }
 
@@ -961,10 +926,12 @@ function gagnerObjetAleatoire($personnage, $objets, $inventaireDAO)
 {
     // Ajoute un objet aléatoire à l'inventaire du personnage
     $objet = $objets[rand(0, count($objets) - 1)];
+
     // On check si le personnage a déjà l'objet dans son inventaire, si oui on en génère un autre
     while (in_array($objet, $personnage->getInventaire()) || $objet->getPa() > $personnage->getPa()) {
         $objet = $objets[rand(0, count($objets) - 1)];
     }
+
     $personnage->ajouterInventaire($objet);
     echo "Vous avez gagné : " . $objet->getNom() . " !\n";
 
@@ -986,11 +953,20 @@ function debutPartie($personnage, $personnageDAO, $inventaireDAO)
         $nom = readline("Quel est le nom de votre personnage ? \n");
         $personnage = new Personnage($nom, 100, 3, 1, 0, 1);
         $personnageDAO->ajouterPersonnage($personnage);
+        echo "La partie va commencer !\n";
+        sleep(3);
+        popen('cls', 'w');
         return $personnage;
+
     } else if ($personnage != null) {
         // Si le personnage existe, on lui demande s'il veut continuer sa partie ou en créer une nouvelle
         $choix = readline("Une partie a été trouvée ! \n1. Continuer la partie \n2. Créer une nouvelle partie \n");
+        while ($choix != 1 && $choix != 2) {
+            $choix = readline("Une partie a été trouvée ! \n1. Continuer la partie \n2. Créer une nouvelle partie \n");
+        }
         if ($choix == 1) {
+            sleep(1);
+            popen('cls', 'w');
             // On laisse le personnage tel quel
             echo "Vous continuez votre partie !\n";
             // On récupère l'inventaire du personnage
@@ -998,7 +974,11 @@ function debutPartie($personnage, $personnageDAO, $inventaireDAO)
             foreach ($inventaire as $objet) {
                 $personnage->ajouterInventaire($objet);
             }
+            echo "La partie va commencer !\n";
+            sleep(3);
+            popen('cls', 'w');
             return $personnage;
+
         } else if ($choix == 2) {
             // On supprime le personnage de la database
             $personnageDAO->supprimerPersonnage($personnage);
@@ -1007,6 +987,9 @@ function debutPartie($personnage, $personnageDAO, $inventaireDAO)
             $personnage = new Personnage($nom, 100, 3, 1, 0, 1);
             $personnageDAO->ajouterPersonnage($personnage);
             $inventaireDAO->supprimerInventaire();
+            echo "La partie va commencer !\n";
+            sleep(3);
+            popen('cls', 'w');
             return $personnage;
         }
     }
@@ -1014,7 +997,7 @@ function debutPartie($personnage, $personnageDAO, $inventaireDAO)
 
 function gagnerArgent($personnage, $salle_actuelle)
 {
-    // Gain d'argent aléatoire à chaque fin de salle
+    // Gain d'argent aléatoire à chaque fin de salle en fonction de la salle actuelle
     $argent = (rand(1, 15) * $salle_actuelle);
     echo "Vous avez gagné " . $argent . " pièces d'or !\n";
     $personnage->setArgent($personnage->getArgent() + $argent);
@@ -1023,6 +1006,7 @@ function gagnerArgent($personnage, $salle_actuelle)
 function echangeMarchand($marchand, $personnage, $inventaireDAO, $marchandDAO)
 {
     echo "Vous entrez dans la salle du marchand !\n";
+    echo "Vous avez " . $personnage->getArgent() . " pièces !\n";
     readline("Appuyez sur entrer pour continuer !\n");
 
     // On vide l'inventaire du marchand
@@ -1030,59 +1014,94 @@ function echangeMarchand($marchand, $personnage, $inventaireDAO, $marchandDAO)
 
     // On récupère de nouveaux objets
     $marchand->recupererObjets($marchandDAO->recupererMarchand());
+    popen('cls', 'w');
+    
+    $continuer = true;
 
-    $choix1 = readline("Voulez-vous acheter des objets ? \n1. Oui \n2. Non \n");
-    while ($choix1 != 1 && $choix1 != 2) {
-        $choix1 = readline("Voulez-vous acheter des objets ? \n1. Oui \n2. Non \n");
-    }
-    while ($choix1 == 1) {
-        if (count($marchand->getInventaire()) == 0) {
-            echo "Le marchand n'a plus d'objets à vendre !\n";
-            break;
+    while ($continuer) {
+        $choix1 = readline("Voulez-vous acheter des objets (1), vendre des objets (2) ou quitter (3) ? \n");
+        
+        while ($choix1 != 1 && $choix1 != 2 && $choix1 != 3) {
+            $choix1 = readline("Voulez-vous acheter des objets (1), vendre des objets (2) ou quitter (3) ? \n");
         }
-        $marchand->afficherInventaire();
-        $choix2 = readline("Quel objet voulez-vous acheter ? Entrer 0 pour ne rien acheter \n");
-        while ($choix2 < 0 || $choix2 > count($marchand->getInventaire())) {
+        
+        popen('cls', 'w');
+        
+        if ($choix1 == 1) {
+            if (count($marchand->getInventaire()) == 0) {
+                echo "Le marchand n'a plus d'objets à vendre !\n";
+                break;
+            }
+            $marchand->afficherInventaire();
             $choix2 = readline("Quel objet voulez-vous acheter ? Entrer 0 pour ne rien acheter \n");
-        }
-        if ($choix2 == 0) {
-            break;
-        }
+            while ($choix2 < 0 || $choix2 > count($marchand->getInventaire())) {
+                $choix2 = readline("Quel objet voulez-vous acheter ? Entrer 0 pour ne rien acheter \n");
+            }
+            if ($choix2 == 0) {
+                break;
+            }
+    
+            $objet = $marchand->getInventaire()[$choix2 - 1];
+            if ($personnage->getArgent() < $objet->getPrix()) {
+                echo "Vous n'avez pas assez d'argent pour acheter cet objet !\n";
+            } else {
+                // On retire l'argent au personnage et on ajoute l'objet à son inventaire
+                $personnage->setArgent($personnage->getArgent() - $objet->getPrix());
+                $personnage->ajouterInventaire($objet);
+                // On ajoute l'objet également à la database
+                $inventaireDAO->ajouterObjet($personnage, $objet);
 
-        $objet = $marchand->getInventaire()[$choix2 - 1];
-        if ($personnage->getArgent() < $objet->getPrix()) {
-            echo "Vous n'avez pas assez d'argent pour acheter cet objet !\n";
-        } else {
-            $personnage->setArgent($personnage->getArgent() - $objet->getPrix());
-            $personnage->ajouterInventaire($objet);
-            $inventaireDAO->ajouterObjet($personnage, $objet);
-            // On supprime l'objet de l'inventaire du marchand
-            $marchand->supprimerObjet($objet);
+                // On supprime l'objet de l'inventaire du marchand
+                $marchand->supprimerObjet($objet);
+                echo "Vous avez acheté " . $objet->getNom() . " !\n";
+            }
+            echo "Vous avez " . $personnage->getArgent() . " pièces !\n";
+        } elseif ($choix1 == 2) {
+            if (count($personnage->getInventaire()) == 0) {
+                echo "Vous n'avez plus d'objets à vendre !\n";
+                break;
+            }
+            $personnage->afficherInventaire();
+            $choix2 = readline("Quel objet voulez-vous vendre ? Entrer 0 pour ne rien vendre \n");
+            while ($choix2 < 0 || $choix2 > count($personnage->getInventaire())) {
+                $choix2 = readline("Quel objet voulez-vous vendre ? Entrer 0 pour ne rien vendre \n");
+            }
+            if ($choix2 == 0) {
+                break;
+            }
+            
+            // Mise en place d'une taxe pour que les objets ne puissent pas être revendus au même prix
+            $taxe = 10;
 
-            echo "Vous avez acheté " . $objet->getNom() . " !\n";
-        }
-        $choix1 = readline("Voulez-vous acheter d'autres objets ? \n1. Oui \n2. Non \n");
-        while ($choix1 != 1 && $choix1 != 2) {
-            $choix1 = readline("Voulez-vous acheter d'autres objets ? \n1. Oui \n2. Non \n");
+            $objet = $personnage->getInventaire()[$choix2 - 1];
+            // On ajoute l'argent au personnage et on supprime l'objet de son inventaire
+            $personnage->setArgent($personnage->getArgent() + ($objet->getPrix() - $taxe));
+            echo "Vous avez vendu " . $objet->getNom() . " pour " . ($objet->getPrix() - $taxe) ." pieces !\n";
+            $personnage->retirerInventaire($objet);
+            // On supprime l'objet de la database
+            $inventaireDAO->supprimerInventaire($personnage, $objet);   
+    
+            readline("Appuyez sur entrer pour continuer !\n");
+            popen('cls', 'w');
+            echo "Vous avez " . $personnage->getArgent() . " pièces !\n";
+        } elseif ($choix1 == 3) {
+            $continuer = false;
         }
     }
 }
-
 
 
 // Instanciation des DAO
 $personnageDAO = new PersonnageDAO($connexion);
 $inventaireDAO = new InventaireDAO($connexion);
 $objetDAO = new ObjetDAO($connexion);
-$armeDAO = new ArmeDAO($connexion);
-$potionDAO = new PotionDAO($connexion);
 $monstreDAO = new MonstreDAO($connexion);
 $enigmeDAO = new EnigmeDAO($connexion);
 $salleDAO = new SalleDAO($connexion);
 $marchandDAO = new MarchanDAO($connexion);
 
 
-// Instanciation des objets présents dans la database
+// Instanciation des objets non liés au marchand présents dans la database
 
 $objetsDB = $objetDAO->recupererTousLesObjets();
 $objets = [];
@@ -1103,7 +1122,7 @@ $personnage = $personnageDAO->recupererPersonnage();
 
 
 $personnage = debutPartie($personnage, $personnageDAO, $inventaireDAO);
-$marchand = new Marchand("Marchand");
+$marchand = new Marchand("Marchand Robert");
 
 
 while ($personnage->getSalleActuelle() < 10) {
@@ -1117,21 +1136,31 @@ while ($personnage->getSalleActuelle() < 10) {
         $choix = readline("Voulez vous continuer ? \n1. Oui \n2. Non \n");
     }
     if ($choix == 2) {
+        popen('cls', 'w');
+        echo "Vous avez quittez la partie !\n";
+        sleep(3);
         break;
     }
-    readline("Appuyez sur entrer pour continuer !\n");
     popen('cls', 'w');
 
 
     // Récupération de la salle
     $salle = $salleDAO->recupererSalle($salle_actuelle);
 
+    echo "C'est une salle de type " . $salle["type_salle"] . " !\n";
+
     if ($salle["type_salle"] === "monstre") {
-        // Récupération du monstre
+        // Récupération du monstre en fonction de la difficulté de la salle
         $monstre = $monstreDAO->recupererMonstre($salle["difficulte"]);
         $monstre->afficherMonstre();
 
+        echo "Un combat s'apprête à commencer\n";
+        sleep(2);
+        readline("Appuyez sur entrer pour continuer !\n");
+        popen('cls', 'w');
+
         // Combat
+        // Si le personnage perd le combat, on arrête la partie
         if (!combat($personnage, $monstre)) {
             // On supprime le personnage et son inventaire de la base de données
             $personnageDAO->supprimerPersonnage();
@@ -1161,13 +1190,16 @@ while ($personnage->getSalleActuelle() < 10) {
         enigme($personnage, $enigme);
     }
 
-    
+
     // Gain d'argent
     gagnerArgent($personnage, $salle_actuelle);
-    
+
     // Génération d'un objet aléatoire
     gagnerObjetAleatoire($personnage, $objets, $inventaireDAO);
-    
+
+    readline("Appuyez sur entrer pour continuer !\n");
+    popen('cls', 'w');
+
     if ($salle_actuelle == 3 || $salle_actuelle == 6 || $salle_actuelle == 9) {
         // Salle du marchand
         echangeMarchand($marchand, $personnage, $inventaireDAO, $marchandDAO);
@@ -1180,3 +1212,11 @@ while ($personnage->getSalleActuelle() < 10) {
     // Sauvegarde du personnage
     $personnageDAO->sauvegarderPersonnage($personnage);
 }
+
+
+echo "Vous avez gagné !\n";
+sleep(2);
+
+// On supprime le personnage et son inventaire de la base de données pour recommencer une nouvelle partie
+$personnageDAO->supprimerPersonnage();
+$inventaireDAO->supprimerInventaire();
