@@ -41,11 +41,11 @@ CREATE TABLE `enigme` (
 LOCK TABLES `enigme` WRITE;
 /*!40000 ALTER TABLE `enigme` DISABLE KEYS */;
 INSERT INTO `enigme` VALUES
-(1,'facile','Qu\'est-ce qui a des dents mais ne peut pas manger ?','Une clé','Un livre','Un ordinateur','Un peigne'),
-(2,'facile','Qu\'est-ce qui a un fond et des côtés mais n\'a pas de haut ?','Un verre','Un seau','Une boîte','Un tiroir'),
-(3,'moyen','Qu\'est-ce qui a des branches mais pas de feuilles ni de fruits ?','Une étagère','Un arbre','Un buisson','Une bibliothèque'),
-(4,'moyen','Je suis pris avant de naître, et je suis libéré quand je meurs. Que suis-je ?','Un souffle','Un secret','Un virus','Un nom'),
-(5,'difficile','Je parle sans bouche et entends sans oreilles. Qui suis-je ?','Un rêve','Un fantôme','Un écho','Un téléphone'),
+(1,'facile','Qu\'est-ce qui a des dents mais ne peut pas manger ?','Une cle','Un livre','Un ordinateur','Un peigne'),
+(2,'facile','Qu\'est-ce qui a un fond et des cotes mais n\'a pas de haut ?','Un verre','Un seau','Une boite','Un tiroir'),
+(3,'moyen','Qu\'est-ce qui a des branches mais pas de feuilles ni de fruits ?','Une etagere','Un arbre','Un buisson','Une bibliotheque'),
+(4,'moyen','Je suis pris avant de naître, et je suis libere quand je meurs. Que suis-je ?','Un souffle','Un secret','Un virus','Un nom'),
+(5,'difficile','Je parle sans bouche et entends sans oreilles. Qui suis-je ?','Un rêve','Un fantôme','Un echo','Un telephone'),
 (6,'difficile','Plus vous en prenez, plus vous en laissez derrière. Que suis-je ?','Le temps','L\'ombre','La chaleur','Les empreintes digitales');
 /*!40000 ALTER TABLE `enigme` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -63,10 +63,8 @@ CREATE TABLE `inventaire` (
   `id_personnage` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `id_objet` (`id_objet`),
-  KEY `fk_id_personnage` (`id_personnage`),
-  CONSTRAINT `fk_id_personnage` FOREIGN KEY (`id_personnage`) REFERENCES `personnage` (`id`),
-  CONSTRAINT `inventaire_ibfk_1` FOREIGN KEY (`id_objet`) REFERENCES `objet` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+  KEY `fk_id_personnage` (`id_personnage`)
+) ENGINE=InnoDB AUTO_INCREMENT=133 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -102,12 +100,12 @@ CREATE TABLE `monstre` (
 LOCK TABLES `monstre` WRITE;
 /*!40000 ALTER TABLE `monstre` DISABLE KEYS */;
 INSERT INTO `monstre` VALUES
-(1,'facile','Gobelin Timide',50,10),
-(2,'facile','Slime Glouton',45,8),
-(3,'moyen','Basilic Sombre',80,15),
-(4,'moyen','Gargouille Malfaisante',75,12),
-(5,'difficile','Draconis Obscurum',120,20),
-(6,'difficile','Cyclope Titanesque',110,18);
+(1,'facile','Gobelin Timide',30,13),
+(2,'facile','Slime Glouton',25,11),
+(3,'moyen','Basilic Sombre',60,18),
+(4,'moyen','Gargouille Malfaisante',65,16),
+(5,'difficile','Draconis Obscurum',90,23),
+(6,'difficile','Cyclope Titanesque',110,19);
 /*!40000 ALTER TABLE `monstre` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -119,13 +117,15 @@ DROP TABLE IF EXISTS `objet`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `objet` (
-  `id` int(11) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `nom` varchar(255) DEFAULT NULL,
   `degats` int(11) DEFAULT NULL,
   `pa` int(11) DEFAULT NULL,
   `pv` int(11) DEFAULT NULL,
+  `prix` int(11) DEFAULT NULL,
+  `objet_marchand` int(1) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -134,6 +134,28 @@ CREATE TABLE `objet` (
 
 LOCK TABLES `objet` WRITE;
 /*!40000 ALTER TABLE `objet` DISABLE KEYS */;
+INSERT INTO `objet` VALUES
+(1,'Epee tranchante',20,3,NULL,30,0),
+(2,'Arc du chasseur',15,2,NULL,25,0),
+(3,'Baton magique',18,4,NULL,25,0),
+(4,'Dague empoisonnee',25,5,NULL,30,0),
+(5,'Marteau de guerre',30,6,NULL,30,0),
+(6,'Potion de soin',NULL,2,25,25,0),
+(7,'Hache tranchante',22,4,NULL,40,0),
+(8,'Fleuret agile',16,2,NULL,50,0),
+(9,'Baguette ensorcelee',20,3,NULL,55,0),
+(10,'Lame empoisonnée',28,5,NULL,60,0),
+(11,'Marteau de guerre lourd',35,7,NULL,65,0),
+(12,'Epee amelioree',25,3,0,50,1),
+(13,'Arc superieur',20,2,0,40,1),
+(14,'Baton enchante',22,4,0,45,1),
+(15,'Dague veneneuse',30,5,0,60,1),
+(16,'Marteau de guerre renforce',35,6,0,70,1),
+(17,'Hache de guerre redoutable',40,7,0,80,1),
+(18,'Lance percante',28,3,0,55,1),
+(19,'Fleuret agile superieur',18,2,0,35,1),
+(20,'Lame empoisonnee avancee',32,5,0,65,1),
+(21,'Potion de soin amelioree',0,2,30,30,1);
 /*!40000 ALTER TABLE `objet` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -145,7 +167,7 @@ DROP TABLE IF EXISTS `personnage`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `personnage` (
-  `id` int(11) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `nom` varchar(255) DEFAULT NULL,
   `pv` int(11) DEFAULT NULL,
   `point_action` int(11) DEFAULT NULL,
@@ -154,7 +176,7 @@ CREATE TABLE `personnage` (
   `niveau` int(11) DEFAULT NULL,
   `salle_actuelle` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -178,7 +200,7 @@ CREATE TABLE `salle` (
   `difficulte` varchar(255) DEFAULT NULL,
   `type_salle` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -187,6 +209,17 @@ CREATE TABLE `salle` (
 
 LOCK TABLES `salle` WRITE;
 /*!40000 ALTER TABLE `salle` DISABLE KEYS */;
+INSERT INTO `salle` VALUES
+(1,'facile','enigme'),
+(2,'facile','monstre'),
+(3,'moyen','enigme'),
+(4,'moyen','monstre'),
+(5,'moyen','enigme'),
+(6,'difficile','monstre'),
+(7,'difficile','enigme'),
+(8,'difficile','monstre'),
+(9,'difficile','enigme'),
+(10,'difficile','monstre');
 /*!40000 ALTER TABLE `salle` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -199,4 +232,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-11-23 11:39:51
+-- Dump completed on 2023-11-24 16:40:55
