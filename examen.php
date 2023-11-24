@@ -442,9 +442,13 @@ class PersonnageDAO
             $requete = $this->db->prepare("SELECT * FROM personnage");
             $requete->execute();
             $resultat = $requete->fetch(PDO::FETCH_ASSOC);
-            $personnage = new Personnage($resultat["nom"], $resultat["pv"], $resultat["point_action"], $resultat["point_defense"], $resultat["experience"], $resultat["niveau"]);
-            $personnage->setSalle_actuelle($resultat["salle_actuelle"]);
-            return $personnage;
+            if($resultat == null){
+                return null;
+            }else{
+                $personnage = new Personnage($resultat["nom"], $resultat["pv"], $resultat["point_action"], $resultat["point_defense"], $resultat["experience"], $resultat["niveau"]);
+                $personnage->setSalle_actuelle($resultat["salle_actuelle"]);
+                return $personnage;
+            }
         }
         catch(PDOException $e){
             echo "Erreur lors de la récupération du personnage : " . $e->getMessage();
@@ -536,6 +540,45 @@ class InventaireDAO
         }
         catch(PDOException $e){
             echo "Erreur lors de la suppression de l'inventaire : " . $e->getMessage();
+            die();
+        }
+    }
+
+    public function recupererInventaire($personnage){
+        // On recupere d'abord l'id du personnage grace à son nom
+        try{
+            $requete = $this->db->prepare("SELECT id FROM personnage WHERE nom = :nom");
+            $requete->execute([":nom" => $personnage->getNom()]);
+            $resultat = $requete->fetch(PDO::FETCH_ASSOC);
+            $id_personnage = $resultat["id"];
+        }
+        catch(PDOException $e){
+            echo "Erreur lors de la récupération de l'id du personnage : " . $e->getMessage();
+            die();
+        }
+
+        // On récupère ensuite les objets de l'inventaire du personnage
+        try{
+            $requete = $this->db->prepare("SELECT * FROM inventaire WHERE id_personnage = :id_personnage");
+            $requete->execute([":id_personnage" => $id_personnage]);
+            $resultat = $requete->fetchAll(PDO::FETCH_ASSOC);
+            $inventaire = [];
+            foreach($resultat as $objet){
+                $requete = $this->db->prepare("SELECT * FROM objet WHERE id = :id");
+                $requete->execute([":id" => $objet["id_objet"]]);
+                $resultat = $requete->fetch(PDO::FETCH_ASSOC);
+                if($resultat["pv"] != null){
+                    $objet = new Potion($resultat["nom"], $resultat["pv"], $resultat["pa"]);
+                }
+                else{
+                    $objet = new Arme($resultat["nom"], $resultat["degats"], $resultat["pa"]);
+                }
+                array_push($inventaire, $objet);
+            }
+            return $inventaire;
+        }
+        catch(PDOException $e){
+            echo "Erreur lors de la récupération de l'inventaire : " . $e->getMessage();
             die();
         }
     }
@@ -783,8 +826,10 @@ function combat($personnage, $monstre)
     if($personnage->getPv() > 0){
 
         echo "Vous avez vaincu le monstre !\n";
+        return true;
     }else{
         echo "Vous avez été vaincu par le monstre !\n";
+        return false;
     }
 }
 
@@ -817,14 +862,53 @@ function gagnerObjetAleatoire($personnage, $objets, $inventaireDAO)
     // Ajoute un objet aléatoire à l'inventaire du personnage
     $objet = $objets[rand(0, count($objets) - 1)];
     // On check si le personnage a déjà l'objet dans son inventaire, si oui on en génère un autre
-    while($objet instanceof Arme && in_array($objet, $personnage->getInventaire())){
+    while(in_array($objet, $personnage->getInventaire()) || $objet->getPa() > $personnage->getPa()){
         $objet = $objets[rand(0, count($objets) - 1)];
     }
     $personnage->ajouterInventaire($objet);
-    echo "Vous avez gagné un " . $objet->getNom() . " !\n";
+    echo "Vous avez gagné : " . $objet->getNom() . " !\n";
 
     // Ajoute l'objet à l'inventaire de la database
     $inventaireDAO->ajouterObjet($personnage, $objet);
+}
+
+function debutPartie($personnage, $personnageDAO, $inventaireDAO){ 
+    
+    // On check si le personnage existe dans la database
+    
+    if ($personnage == null) {
+        // Si le personnage n'existe pas, on le crée
+        echo "Aucune partie n'a été trouvée !\n"
+            . "Création d'un nouveau personnage !\n";
+        sleep(3);
+        // popen('cls', 'w');
+        $nom = readline("Quel est le nom de votre personnage ? \n");
+        $personnage = new Personnage($nom, 100, 3, 1, 0, 1);
+        $personnageDAO->ajouterPersonnage($personnage);
+        return $personnage;
+    } else if ($personnage != null){
+        // Si le personnage existe, on lui demande s'il veut continuer sa partie ou en créer une nouvelle
+        $choix = readline("Une partie a été trouvée ! \n1. Continuer la partie \n2. Créer une nouvelle partie \n");
+        if ($choix == 1) {
+            // On laisse le personnage tel quel
+            echo "Vous continuez votre partie !\n";
+            // On récupère l'inventaire du personnage
+            $inventaire = $inventaireDAO->recupererInventaire($personnage);
+            foreach($inventaire as $objet){
+                $personnage->ajouterInventaire($objet);
+            }
+            return $personnage;
+        } else if ($choix == 2) {
+            // On supprime le personnage de la database
+            $personnageDAO->supprimerPersonnage($personnage);
+            // On crée un nouveau personnage
+            $nom = readline("Quel est le nom de votre personnage ? \n");
+            $personnage = new Personnage($nom, 100, 3, 1, 0, 1);
+            $personnageDAO->ajouterPersonnage($personnage);
+            $inventaireDAO->supprimerInventaire();
+            return $personnage;
+        }
+    }
 }
 
 
@@ -837,42 +921,6 @@ $potionDAO = new PotionDAO($connexion);
 $monstreDAO = new MonstreDAO($connexion);
 $enigmeDAO = new EnigmeDAO($connexion);
 $salleDAO = new SalleDAO($connexion);
-
-// 
-// RECUPERATION DU PERSONNAGE
-//
-
-$personnage = $personnageDAO->recupererPersonnage();
-
-// On check si le personnage existe bien dans la database
-
-if ($personnage == null) {
-    // Si le personnage n'existe pas, on le crée
-    echo "Aucune partie n'a été trouvée !\n"
-        . "Création d'un nouveau personnage !\n";
-    sleep(3);
-    popen('cls', 'w');
-    $nom = readline("Quel est le nom de votre personnage ? \n");
-    $personnage = new Personnage($nom, 100, 3, 1, 0, 1);
-    $personnageDAO->ajouterPersonnage($personnage);
-} else if ($personnage != null){
-    // Si le personnage existe, on lui demande s'il veut continuer sa partie ou en créer une nouvelle
-    $choix = readline("Une partie a été trouvée ! \n1. Continuer la partie \n2. Créer une nouvelle partie \n");
-    if ($choix == 1) {
-        // On laisse le personnage tel quel
-        echo "Vous continuez votre partie !\n";
-    } else if ($choix == 2) {
-        // On supprime le personnage de la database
-        $personnageDAO->supprimerPersonnage($personnage);
-        // On crée un nouveau personnage
-        $nom = readline("Quel est le nom de votre personnage ? \n");
-        $personnage = new Personnage($nom, 100, 3, 1, 0, 1);
-        $personnageDAO->ajouterPersonnage($personnage);
-        $inventaireDAO->supprimerInventaire();
-    }
-}
-
-
 
 
 // Instanciation des objets présents dans la database
@@ -890,12 +938,16 @@ foreach ($objetsDB as $objet) {
 
 
 
+// Début de la partie
+
+$personnage = $personnageDAO->recupererPersonnage();
+
+
+$personnage = debutPartie($personnage, $personnageDAO, $inventaireDAO);
+
 
 while ($personnage->getSalleActuelle() < 10) {
 
-    // A chaque debut de salle, on gagne un objet aléatoire
-
-    gagnerObjetAleatoire($personnage, $objets, $inventaireDAO);
 
     // Récupération de la salle actuelle
     $salle_actuelle = $personnage->getSalleActuelle();
@@ -921,7 +973,14 @@ while ($personnage->getSalleActuelle() < 10) {
         $monstre->afficherMonstre();
 
         // Combat
-        combat($personnage, $monstre);
+        if(!combat($personnage, $monstre)){
+            // On supprime le personnage et son inventaire de la base de données
+            $personnageDAO->supprimerPersonnage();
+            $inventaireDAO->supprimerInventaire();
+            exit();
+        }
+
+        
 
         // Gain d'expérience
         switch ($salle["difficulte"]) {
@@ -945,6 +1004,9 @@ while ($personnage->getSalleActuelle() < 10) {
     }
 
     $personnage->setSalle_actuelle($personnage->getSalleActuelle() + 1);
+
+    // Génération d'un objet aléatoire
+    gagnerObjetAleatoire($personnage, $objets, $inventaireDAO);
 
     // Sauvegarde du personnage
     $personnageDAO->sauvegarderPersonnage($personnage);
